@@ -1,0 +1,9 @@
+cat << 'EOF' > .gitignore
+__pycache__/
+*.pyc
+results/
+.env
+venv/
+EOF
+git add .gitignore
+git commit -m "chore: initialize project and gitignore"
