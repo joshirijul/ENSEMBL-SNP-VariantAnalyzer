@@ -46,23 +46,29 @@ def main():
         print("\n[+] Pipeline execution complete. Files saved in /results.")
         
     # Route 2: Automated Gene Discovery execution
+    # Route 2: Automated Gene Discovery execution
     elif args.gene:
         print(f"\n[*] Initializing discovery mode for gene {args.gene}...")
         rsids = client.discover_pathogenic_snps(args.gene)
         
         if not rsids:
-            print(f"[-] No pathogenic variants found for {args.gene}.")
+            print(f"[-] No pathogenic missense/nonsense variants found for {args.gene}.")
             return
             
-        limit = min(args.limit, len(rsids))
-        print(f"[*] Processing the first {limit} variants...\n")
+        limit = args.limit
+        print(f"[*] Hunting for {limit} actionable targets...\n")
         
         successful = 0
-        for rsid in rsids[:limit]:
+        for rsid in rsids:
+            # Break the loop once we've successfully generated the requested number of reports
+            if successful >= limit:
+                break
+                
+            # process_variant returns True only if it finds an amino acid shift and generates a report
             if process_variant(rsid, analyzer, reporter):
                 successful += 1
                 
-        print(f"\n[+] Discovery execution complete. Successfully mapped {successful}/{limit} variants. Files saved in /results.")
+        print(f"\n[+] Discovery execution complete. Successfully mapped {successful} variants. Files saved in /results.")
 
 if __name__ == "__main__":
     main()

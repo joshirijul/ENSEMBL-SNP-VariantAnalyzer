@@ -63,25 +63,32 @@ class EnsemblClient:
         print(f"[*] Mapped {gene_symbol} to chr{chrom}:{start}-{end}. Fetching regional variants (this may take a moment)...")
         
         # Step 2: Query all variants in this physical genomic region
-        # Note: feature=variation ensures we get the raw variant data with ClinVar tags
         variants = self._request(f"/overlap/region/{self.species}/{chrom}:{start}-{end}?feature=variation")
         
         pathogenic_rsids = set()
         
-        # Step 3: Filter for mutations explicitly flagged as pathogenic
+        # Step 3: Filter for mutations explicitly flagged as pathogenic AND structurally relevant
         if variants:
             for v in variants:
-                clin_sigs = v.get('clinical_significance', [])
+                clin_sigs = v.get('clinical_significance')
+                consequences = v.get('consequence_type')
                 
-                # Ensure we are dealing with a list before iterating
-                if isinstance(clin_sigs, list):
-                    # Check if 'pathogenic' is in any of the significance tags
-                    if any('pathogenic' in str(cs).lower() for cs in clin_sigs):
+                # Fix 1: Standardize Ensembl's string responses into lists to prevent character iteration
+                if isinstance(clin_sigs, str): clin_sigs = [clin_sigs]
+                if not isinstance(clin_sigs, list): clin_sigs = []
+                
+                if isinstance(consequences, str): consequences = [consequences]
+                if not isinstance(consequences, list): consequences = []
+                
+                # 1. Is it pathogenic?
+                if any('pathogenic' in str(cs).lower() for cs in clin_sigs):
+                    # Fix 2: Use Sequence Ontology (SO) terms like 'stop_gained'
+                    if any(c in ['missense_variant', 'stop_gained'] for c in consequences):
                         rsid = v.get('id', '')
                         if rsid.startswith('rs'):
                             pathogenic_rsids.add(rsid)
                 
         # Convert set to a sorted list for consistent processing
         final_list = sorted(list(pathogenic_rsids))
-        print(f"[+] Found {len(final_list)} pathogenic variants for {gene_symbol}.")
+        print(f"[+] Found {len(final_list)} pathogenic missense/nonsense variants for {gene_symbol}.")
         return final_list
