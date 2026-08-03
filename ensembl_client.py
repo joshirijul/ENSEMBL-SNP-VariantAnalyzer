@@ -45,3 +45,43 @@ class EnsemblClient:
         # Added ?type=protein so Ensembl automatically translates transcripts
         data = self._request(f"/sequence/id/{ensembl_id}?type={seq_type}")
         return data.get("seq", "") if data else ""
+
+    def discover_pathogenic_snps(self, gene_symbol: str) -> list:
+        """Finds all clinically significant rsIDs for a given gene symbol."""
+        print(f"[*] Discovering variants for gene: {gene_symbol}...")
+        
+        # Step 1: Look up the Ensembl Gene ID & Genomic Coordinates
+        gene_data = self._request(f"/lookup/symbol/{self.species}/{gene_symbol}")
+        if not gene_data or 'seq_region_name' not in gene_data:
+            print(f"[!] Could not find Ensembl coordinates for gene {gene_symbol}")
+            return []
+            
+        chrom = gene_data.get("seq_region_name")
+        start = gene_data.get("start")
+        end = gene_data.get("end")
+        
+        print(f"[*] Mapped {gene_symbol} to chr{chrom}:{start}-{end}. Fetching regional variants (this may take a moment)...")
+        
+        # Step 2: Query all variants in this physical genomic region
+        # Note: feature=variation ensures we get the raw variant data with ClinVar tags
+        variants = self._request(f"/overlap/region/{self.species}/{chrom}:{start}-{end}?feature=variation")
+        
+        pathogenic_rsids = set()
+        
+        # Step 3: Filter for mutations explicitly flagged as pathogenic
+        if variants:
+            for v in variants:
+                clin_sigs = v.get('clinical_significance', [])
+                
+                # Ensure we are dealing with a list before iterating
+                if isinstance(clin_sigs, list):
+                    # Check if 'pathogenic' is in any of the significance tags
+                    if any('pathogenic' in str(cs).lower() for cs in clin_sigs):
+                        rsid = v.get('id', '')
+                        if rsid.startswith('rs'):
+                            pathogenic_rsids.add(rsid)
+                
+        # Convert set to a sorted list for consistent processing
+        final_list = sorted(list(pathogenic_rsids))
+        print(f"[+] Found {len(final_list)} pathogenic variants for {gene_symbol}.")
+        return final_list
