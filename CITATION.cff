@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use this software in your research, please cite it as below."
+authors:
+  - family-names: "Joshi"
+    given-names: "Rijul"
+title: "Ensembl-SNP-VariantAnalyzer"
+version: 1.0.0
+date-released: 2026-08-03
+url: "https://github.com/joshirijul/Ensembl-SNP-VariantAnalyzer"
